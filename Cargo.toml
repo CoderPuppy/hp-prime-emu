@@ -1,0 +1,11 @@
+[package]
+name = "emu"
+version = "0.1.0"
+authors = ["CoderPuppy <coderpup@gmail.com>"]
+
+[dependencies]
+xmas-elf = "*"
+libc = "*"
+byteorder = "*"
+sdl2 = "*"
+cpuprofiler = "*"
