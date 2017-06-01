@@ -209,10 +209,21 @@ pub enum Instr {
 	CallThumb {
 		addr: i32, // 25 bit
 	},
-	Thumby {
+	ThumbyJump {
 		cond: Condition,
 		link: bool,
 		addr: Register,
+	},
+	ThumbJump {
+		cond: Condition,
+		addr: i16, // 8 or 11 bit
+	},
+	ThumbJumpPrefix {
+		offset: i16, // 11 bit
+	},
+	ThumbCall {
+		offset: u16, // 11 bit
+		exchange: bool,
 	},
 	LoadStoreMultiple {
 		cond: Condition,
@@ -300,7 +311,10 @@ impl Instr {
 			&Instr::LoadStore { ref cond, .. } => cond.to_owned(),
 			&Instr::Jump { ref cond, .. } => cond.to_owned(),
 			&Instr::CallThumb { .. } => Condition::Always,
-			&Instr::Thumby { ref cond, .. } => cond.to_owned(),
+			&Instr::ThumbyJump { ref cond, .. } => cond.to_owned(),
+			&Instr::ThumbJump { ref cond, .. } => cond.to_owned(),
+			&Instr::ThumbJumpPrefix { .. } => Condition::Always,
+			&Instr::ThumbCall { .. } => Condition::Always,
 			&Instr::LoadStoreMultiple { ref cond, .. } => cond.to_owned(),
 			&Instr::Mul { ref cond, .. } => cond.to_owned(),
 			&Instr::Coprocessor { ref cond, .. } => cond.to_owned(),

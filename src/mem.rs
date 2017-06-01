@@ -4,14 +4,15 @@ use std::slice;
 use std::io;
 use std::fs::File;
 use std::os::unix::io::AsRawFd;
+use std;
 
 pub trait Store {
 	fn min_addr(&self) -> u32;
 	fn max_addr(&self) -> u32;
 
-	fn load_byte(&self, addr: u32) -> Option<u8>;
-	fn load_halfword(&self, addr: u32) -> Option<u16>;
-	fn load_word(&self, addr: u32) -> Option<u32>;
+	fn load_byte(&mut self, addr: u32) -> Option<u8>;
+	fn load_halfword(&mut self, addr: u32) -> Option<u16>;
+	fn load_word(&mut self, addr: u32) -> Option<u32>;
 
 	fn store_byte(&mut self, addr: u32, data: u8) -> bool;
 	fn store_halfword(&mut self, addr: u32, data: u16) -> bool;
@@ -77,13 +78,13 @@ impl Store for MmapStore {
 	fn min_addr(&self) -> u32 { 0 }
 	fn max_addr(&self) -> u32 { self.len - 1 }
 
-	fn load_byte(&self, addr: u32) -> Option<u8> {
+	fn load_byte(&mut self, addr: u32) -> Option<u8> {
 		Some(self.data()[addr as usize])
 	}
-	fn load_halfword(&self, addr: u32) -> Option<u16> {
+	fn load_halfword(&mut self, addr: u32) -> Option<u16> {
 		Some(LittleEndian::read_u16(&self.data()[addr as usize..]))
 	}
-	fn load_word(&self, addr: u32) -> Option<u32> {
+	fn load_word(&mut self, addr: u32) -> Option<u32> {
 		Some(LittleEndian::read_u32(&self.data()[addr as usize..]))
 	}
 
@@ -116,13 +117,13 @@ impl Store for RAM {
 	fn min_addr(&self) -> u32 { 0 }
 	fn max_addr(&self) -> u32 { self.0.len() as u32 - 1 }
 
-	fn load_byte(&self, addr: u32) -> Option<u8> {
+	fn load_byte(&mut self, addr: u32) -> Option<u8> {
 		Some(self.0[addr as usize])
 	}
-	fn load_halfword(&self, addr: u32) -> Option<u16> {
+	fn load_halfword(&mut self, addr: u32) -> Option<u16> {
 		Some(LittleEndian::read_u16(&self.0[addr as usize..]))
 	}
-	fn load_word(&self, addr: u32) -> Option<u32> {
+	fn load_word(&mut self, addr: u32) -> Option<u32> {
 		Some(LittleEndian::read_u32(&self.0[addr as usize..]))
 	}
 
@@ -145,11 +146,25 @@ impl<S: Store> Store for OffsetStore<S> {
 	fn min_addr(&self) -> u32 { self.0 + self.1.min_addr() }
 	fn max_addr(&self) -> u32 { self.0 + self.1.max_addr() }
 
-	fn load_byte(&self, addr: u32) -> Option<u8> { self.1.load_byte(addr - self.0) }
-	fn load_halfword(&self, addr: u32) -> Option<u16> { self.1.load_halfword(addr - self.0) }
-	fn load_word(&self, addr: u32) -> Option<u32> { self.1.load_word(addr - self.0) }
+	fn load_byte(&mut self, addr: u32) -> Option<u8> { self.1.load_byte(addr - self.0) }
+	fn load_halfword(&mut self, addr: u32) -> Option<u16> { self.1.load_halfword(addr - self.0) }
+	fn load_word(&mut self, addr: u32) -> Option<u32> { self.1.load_word(addr - self.0) }
 
 	fn store_byte(&mut self, addr: u32, data: u8) -> bool { self.1.store_byte(addr - self.0, data) }
 	fn store_halfword(&mut self, addr: u32, data: u16) -> bool { self.1.store_halfword(addr - self.0, data) }
 	fn store_word(&mut self, addr: u32, data: u32) -> bool { self.1.store_word(addr - self.0, data) }
+}
+
+pub struct LimitStore<S: Store>(pub u32, pub S);
+impl<S: Store> Store for LimitStore<S> {
+	fn min_addr(&self) -> u32 { self.1.min_addr() }
+	fn max_addr(&self) -> u32 { std::cmp::min(self.1.max_addr(), self.1.min_addr() + self.0 - 1) }
+
+	fn load_byte(&mut self, addr: u32) -> Option<u8> { self.1.load_byte(addr) }
+	fn load_halfword(&mut self, addr: u32) -> Option<u16> { self.1.load_halfword(addr) }
+	fn load_word(&mut self, addr: u32) -> Option<u32> { self.1.load_word(addr) }
+
+	fn store_byte(&mut self, addr: u32, data: u8) -> bool { self.1.store_byte(addr, data) }
+	fn store_halfword(&mut self, addr: u32, data: u16) -> bool { self.1.store_halfword(addr, data) }
+	fn store_word(&mut self, addr: u32, data: u32) -> bool { self.1.store_word(addr, data) }
 }

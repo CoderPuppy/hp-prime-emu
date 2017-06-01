@@ -196,7 +196,7 @@ impl Instr {
 			&Instr::CallThumb { addr } => format!("blx 0x{:x}"
 				, pc.wrapping_add(8).wrapping_add((addr as i32).wrapping_shl(8).wrapping_shr(7) as u32)
 			),
-			&Instr::Thumby { cond, link, addr } => format!("b{}x{} {}"
+			&Instr::ThumbyJump { cond, link, addr } => format!("b{}x{} {}"
 				, if link { "l" } else { "" }
 				, cond.pp()
 				, addr.pp()

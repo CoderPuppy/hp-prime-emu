@@ -1,11 +1,76 @@
-pub mod parser;
-pub mod print;
-pub mod structures;
-
 use mem;
 use instr::*;
 use disasm;
 use pp;
+use cell::WCell;
+use std::sync::{Arc, Weak};
+use std::marker::PhantomData;
+use std::collections::BTreeMap;
+use store::Id;
+
+pub struct LinearCode {
+	pub start: u32,
+	pub end: u32,
+	pub info: Vec<(u32, CodeInfo)>,
+}
+pub enum JumpDir {
+	To,
+	From,
+}
+pub enum CodeInfo {
+	Jump {
+		dir: JumpDir,
+		addr: u32,
+		link: bool,
+	},
+	JumpedTo,
+	Access {
+		store: bool,
+		addr: u32,
+		len: u32,
+	},
+	DisableObvious,
+}
+
+pub enum RangeInfo {
+	AccessedBy {
+		addr: u32,
+		store: bool,
+	},
+}
+
+pub enum Widget {
+	// TODO
+}
+
+pub enum Note {
+	Note(String),
+	Widget(Id<Widget>),
+}
+
+pub enum LogicalChild {
+	Logical(Id<LogicalBlock>),
+	Physical(Id<PhysicalBlock>),
+	Note(Note),
+}
+
+// #[derive(Debug)]
+pub struct LogicalBlock {
+	pub name: String,
+	pub children: Vec<LogicalChild>,
+}
+
+// #[derive(Debug)]
+pub struct PhysicalBlock {
+	pub start: u32,
+	pub end: u32,
+	pub name: Option<String>,
+	pub parent: Option<Id<PhysicalBlock>>,
+	pub notes: Vec<(u32, Note)>,
+	pub sub_blocks: Vec<(u32, Id<PhysicalBlock>)>,
+	pub logical_parent: Option<Id<LogicalBlock>>,
+	pub widget_uses: BTreeMap<Id<Widget>, ()>,
+}
 
 pub fn analyse_forward<S: mem::Store>(src: S, start_addr: u32) {
 	for addr in (start_addr..).step_by(4) {
